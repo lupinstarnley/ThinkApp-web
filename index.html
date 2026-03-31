@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ThinkApp - Lupper Edition V1.0.1</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-uikit-prebuilt.js"></script>
+
+    <style>
+        :root {
+            --wa-bg: #0B141A;
+            --wa-header: #128C7E;
+            --wa-teal: #00A884;
+            --wa-msg-in: #202C33;
+            --wa-msg-out: #005C4B;
+            --gold: #D4AF37;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; background-color: var(--wa-bg); color: #E9EDEF; overflow: hidden; height: 100vh; width: 100vw; }
+        .hidden { display: none !important; }
+
+        /* AUTH & MASTER LOGIN */
+        #auth-page { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(180deg, #0B141A 0%, #128C7E 100%); padding: 20px; }
+        .auth-box { background: #111B21; padding: 30px; border-radius: 20px; width: 100%; max-width: 380px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); text-align: center; }
+        .auth-box input { width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 10px; border: 1px solid var(--wa-teal); background: #2A3942; color: white; outline: none; font-size: 16px; }
+        .auth-btn { background: var(--wa-teal); color: white; border: none; padding: 15px; width: 100%; border-radius: 30px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* HEADER & TABS */
+        .header { background: var(--wa-header); padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .tabs { display: flex; background: var(--wa-header); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .tab { flex: 1; padding: 15px; text-align: center; color: #B1D9D4; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.3s; }
+        .tab.active { color: white; border-bottom: 3px solid white; }
+
+        /* MAIN LISTS */
+        .view-container { height: calc(100vh - 110px); overflow-y: auto; background: var(--wa-bg); }
+        .item { display: flex; padding: 15px; border-bottom: 1px solid #202C33; align-items: center; transition: 0.2s; }
+        .item:active { background: #202C33; }
+        .avatar { width: 55px; height: 55px; border-radius: 50%; background: #3d4a52; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 24px; position: relative; }
+        .online-dot { width: 12px; height: 12px; background: #00ff00; border-radius: 50%; position: absolute; bottom: 2px; right: 2px; border: 2px solid var(--wa-bg); }
+        .details { flex: 1; }
+        .name-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+        .msg-preview { color: #8696A0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+        .blue-tick { color: #53bdeb; margin-left: 5px; font-size: 14px; }
+
+        /* CHAT WINDOW */
+        #chat-window { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0d1418; z-index: 500; display: flex; flex-direction: column; }
+        .chat-header { background: var(--wa-header); padding: 10px; display: flex; align-items: center; color: white; }
+        .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #0d1418; }
+        .m-box { max-width: 80%; padding: 10px 14px; border-radius: 10px; margin-bottom: 10px; font-size: 15px; position: relative; line-height: 1.4; }
+        .m-in { background: var(--wa-msg-in); align-self: flex-start; border-top-left-radius: 0; }
+        .m-out { background: var(--wa-msg-out); align-self: flex-end; border-top-right-radius: 0; }
+        .m-time { font-size: 10px; color: #8696A0; text-align: right; margin-top: 5px; display: block; }
+        .chat-input-bar { background: #202C33; padding: 10px; display: flex; align-items: center; }
+        .chat-input-bar input { flex: 1; background: #2A3942; border: none; padding: 12px 18px; border-radius: 25px; color: white; outline: none; }
+        .send-icon { margin-left: 10px; background: var(--wa-teal); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; border: none; }
+
+        /* ADMIN PANEL (THE GOD-EYE) */
+        #admin-panel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; padding: 20px; overflow-y: auto; border: 3px solid var(--gold); }
+        .admin-card { background: #111; padding: 20px; border-radius: 15px; border-left: 5px solid var(--gold); margin-bottom: 20px; }
+        .btn-gold { background: var(--gold); color: black; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; margin-top: 10px; }
+
+        /* FAB */
+        .fab { position: fixed; bottom: 25px; right: 25px; background: var(--wa-teal); width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 100; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-page">
+        <div class="auth-box">
+            <h1 style="color: var(--wa-teal); margin-bottom: 5px;">ThinkApp</h1>
+            <p style="color: #8696A0; font-size: 14px; margin-bottom: 25px;">Lupper Edition V1.0.1</p>
+            <input type="text" id="user-name" placeholder="Enter Nickname">
+            <input type="email" id="auth-email" placeholder="Email Address">
+            <div id="pin-area" class="hidden">
+                <input type="password" id="auth-pin" placeholder="MASTER PIN">
+            </div>
+            <button class="auth-btn" onclick="handleLogin()">Agree and Continue</button>
+        </div>
+    </div>
+
+    <div id="main-app" class="hidden">
+        <div class="header">
+            <h2 style="margin:0; font-size: 22px;">ThinkApp</h2>
+            <div style="font-size: 18px;">
+                <i class="fa fa-camera" style="margin-right:20px;"></i>
+                <i class="fa fa-search" style="margin-right:20px;"></i>
+                <i class="fa fa-ellipsis-v" onclick="toggleAdminCheck()"></i>
+            </div>
+        </div>
+        <div class="tabs">
+            <div class="tab" style="flex:0.3;"><i class="fa fa-users"></i></div>
+            <div class="tab active" onclick="switchTab('chats')">CHATS</div>
+            <div class="tab" onclick="switchTab('status')">STATUS</div>
+            <div class="tab" onclick="switchTab('calls')">CALLS</div>
+        </div>
+
+        <div id="view-chats" class="view-container">
+            <div class="item" onclick="openChat('~LupperAI', true)">
+                <div class="avatar" style="background:var(--wa-teal)"><i class="fa fa-robot"></i><div class="online-dot"></div></div>
+                <div class="details">
+                    <div class="name-row"><span>~LupperAI <i class="fa fa-circle-check blue-tick"></i></span><span style="color:var(--wa-teal); font-size:12px;">Official</span></div>
+                    <div class="msg-preview">Online. Type .ai [text] or .img [prompt]</div>
+                </div>
+            </div>
+            <div id="dynamic-chat-list"></div>
+        </div>
+
+        <div id="view-status" class="view-container hidden">
+            <div class="item">
+                <div class="avatar"><i class="fa fa-plus" style="font-size:18px; color:var(--wa-teal)"></i></div>
+                <div class="details">
+                    <div class="name-row">My Status</div>
+                    <div class="msg-preview">Tap to add status update</div>
+                </div>
+            </div>
+            <p style="padding: 10px 15px; color: #8696A0; font-size: 13px; font-weight: bold;">RECENT UPDATES</p>
+            <div id="status-feed"></div>
+        </div>
+
+        <div id="view-calls" class="view-container hidden">
+            <div style="padding: 40px; text-align: center; color: #8696A0;">
+                <i class="fa fa-link" style="font-size: 40px; margin-bottom: 10px;"></i>
+                <p>To call a contact who is on ThinkApp, tap <i class="fa fa-phone-plus"></i> at the bottom of your screen.</p>
+            </div>
+        </div>
+
+        <div class="fab"><i class="fa fa-message"></i></div>
+    </div>
+
+    <div id="chat-window" class="hidden">
+        <div class="chat-header">
+            <i class="fa fa-arrow-left" onclick="closeChat()" style="margin-right:15px; cursor:pointer;"></i>
+            <div class="avatar" id="active-avatar" style="width:35px; height:35px; margin-right:10px; font-size:16px;"></div>
+            <div style="flex:1;">
+                <div id="chat-target-name" style="font-weight:bold; font-size:16px;">Name</div>
+                <div style="font-size:12px; color:#B1D9D4;">online</div>
+            </div>
+            <i class="fa fa-video" style="margin-right:20px;" onclick="startCall('video')"></i>
+            <i class="fa fa-phone" style="margin-right:20px;" onclick="startCall('voice')"></i>
+            <i class="fa fa-ellipsis-v"></i>
+        </div>
+        <div class="chat-body" id="chat-msgs"></div>
+        <div class="chat-input-bar">
+            <i class="fa fa-face-smile" style="margin-right:12px; color:#8696A0; font-size:22px;"></i>
+            <input type="text" id="chat-input" placeholder="Message">
+            <i class="fa fa-paperclip" style="margin: 0 15px; color:#8696A0; font-size:20px;"></i>
+            <button class="send-icon" onclick="handleSendMessage()"><i class="fa fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <div id="admin-panel" class="hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; color:var(--gold); margin-bottom:20px;">
+            <h2 style="margin:0;"><i class="fa fa-crown"></i> Control Room</h2>
+            <i class="fa fa-times" style="font-size:24px; cursor:pointer;" onclick="hideAdmin()"></i>
+        </div>
+
+        <div class="admin-card">
+            <h3><i class="fa fa-robot"></i> Auto-Status Bot</h3>
+            <p style="font-size:12px; color:#8696A0;">Upload picha/video zitakazopanda zenyewe kila baada ya saa 5.</p>
+            <button class="btn-gold" onclick="alert('Status Bot Active. Cycles: 5Hrs')">Activate Bot</button>
+        </div>
+
+        <div class="admin-card">
+            <h3><i class="fa fa-user-check"></i> Verification Toggle</h3>
+            <div id="admin-user-list">
+                </div>
+        </div>
+
+        <div class="admin-card">
+            <h3><i class="fa fa-database"></i> Database Cleanup</h3>
+            <button class="btn-gold" style="background:#f15c6d" onclick="cleanupStatus()">Force Delete Expired Status</button>
+        </div>
+
+        <button class="auth-btn" style="background:#444;" onclick="hideAdmin()">Return to Dashboard</button>
+    </div>
+
+    <script>
+        /* CONFIGURATION */
+        const MASTER_EMAIL = "lupinstarnley006@gmail.com";
+        const MASTER_PIN = "2892";
+        const GEMINI_KEY = "AIzaSyAd1HLXbZxdc2EIGuUGN4NhPY16r7bb7z4";
+        const ZEGO_APP_ID = 1882948341;
+        const ZEGO_SERVER_SECRET = "1cad20d53b1a1109576d27688ba447dc";
+
+        // Firebase Setup
+        const firebaseConfig = {
+            apiKey: "AIzaSyD8qDCwpuEg0-Dz_9X3OS5BbZcLldSOL58",
+            authDomain: "bet-time-6a8b2.firebaseapp.com",
+            databaseURL: "https://bet-time-6a8b2-default-rtdb.firebaseio.com",
+            projectId: "bet-time-6a8b2",
+            storageBucket: "bet-time-6a8b2.firebasestorage.app",
+            messagingSenderId: "542692701973",
+            appId: "1:542692701973:web:3657ddf67aeade45059b1c"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let currentUser = null;
+        let activeChat = null;
+
+        /* AUTH LOGIC */
+        document.getElementById('auth-email').addEventListener('input', (e) => {
+            if(e.target.value === MASTER_EMAIL) {
+                document.getElementById('pin-area').classList.remove('hidden');
+            } else {
+                document.getElementById('pin-area').classList.add('hidden');
+            }
+        });
+
+        function handleLogin() {
+            const name = document.getElementById('user-name').value;
+            const email = document.getElementById('auth-email').value;
+            const pin = document.getElementById('auth-pin').value;
+
+            if(!name || !email) return alert("Fill all fields");
+
+            if(email === MASTER_EMAIL) {
+                if(pin === MASTER_PIN) {
+                    enterApp(name, true);
+                } else {
+                    alert("Invalid Master PIN");
+                }
+            } else {
+                enterApp(name, false);
+            }
+        }
+
+        function enterApp(name, isBoss) {
+            currentUser = { name, isBoss, id: "user_" + Date.now() };
+            document.getElementById('auth-page').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            initChatListener();
+        }
+
+        /* TABS */
+        function switchTab(tab) {
+            document.querySelectorAll('.view-container').forEach(v => v.classList.add('hidden'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('view-' + tab).classList.remove('hidden');
+            event.currentTarget.classList.add('active');
+        }
+
+        /* CHAT LOGIC */
+        function openChat(name, isBot) {
+            activeChat = { name, isBot };
+            document.getElementById('chat-target-name').innerText = name;
+            document.getElementById('active-avatar').innerHTML = isBot ? '<i class="fa fa-robot"></i>' : '<i class="fa fa-user"></i>';
+            document.getElementById('chat-window').classList.remove('hidden');
+            document.getElementById('chat-msgs').innerHTML = "";
+            
+            if(!isBot) {
+                loadRealMessages(name);
+            } else {
+                appendMsg("System", "LupperAI Active. Commands: .ai (Ask), .img (Generate), .alive", "in");
+            }
+        }
+
+        function closeChat() { document.getElementById('chat-window').classList.add('hidden'); }
+
+        async function handleSendMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if(!text) return;
+
+            appendMsg(currentUser.name, text, "out");
+            input.value = "";
+
+            if(activeChat.isBot) {
+                processBotCommands(text);
+            } else {
+                // Save to Firebase
+                db.ref('chats/' + activeChat.name).push({
+                    sender: currentUser.name,
+                    text: text,
+                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                });
+            }
+        }
+
+        async function processBotCommands(text) {
+            if(text.startsWith(".ai ")) {
+                const prompt = text.replace(".ai ", "");
+                const res = await fetchGemini(prompt);
+                appendMsg("LupperAI", res, "in");
+            } 
+            else if(text.startsWith(".img ")) {
+                const prompt = text.replace(".img ", "");
+                const imgUrl = `https://pollinations.ai/p/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${Math.floor(Math.random()*1000)}&nologo=true`;
+                appendMsg("LupperAI", `<img src="${imgUrl}" style="width:100%; border-radius:10px; margin-top:5px;">`, "in", true);
+            }
+            else if(text === ".alive") {
+                appendMsg("LupperAI", "I am running on Firebase + Gemini Flash V1.5. Systems: Green.", "in");
+            }
+            else {
+                appendMsg("LupperAI", "Unknown command. Use .ai [question]", "in");
+            }
+        }
+
+        async function fetchGemini(prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+            try {
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await res.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (e) { return "Gemini API Error."; }
+        }
+
+        function appendMsg(sender, text, type, isHtml = false) {
+            const container = document.getElementById('chat-msgs');
+            const div = document.createElement('div');
+            div.className = `m-box m-${type}`;
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            if(isHtml) div.innerHTML = text + `<span class="m-time">${time}</span>`;
+            else div.innerHTML = text + `<span class="m-time">${time}</span>`;
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div;
+        }
+
+        /* REAL-TIME LISTENERS */
+        function initChatListener() {
+            db.ref('status').on('value', snapshot => {
+                const feed = document.getElementById('status-feed');
+                feed.innerHTML = "";
+                snapshot.forEach(child => {
+                    const data = child.val();
+                    feed.innerHTML += `
+                        <div class="item">
+                            <div class="avatar" style="border: 2px solid var(--wa-teal); padding:2px;"><img src="${data.url}" style="width:100%; border-radius:50%"></div>
+                            <div class="details"><div class="name-row">${data.user}</div><div class="msg-preview">${data.time}</div></div>
+                        </div>`;
+                });
+            });
+        }
+
+        function loadRealMessages(chatName) {
+            db.ref('chats/' + chatName).on('child_added', snap => {
+                const data = snap.val();
+                if(data.sender === currentUser.name) return; // Already appended
+                appendMsg(data.sender, data.text, "in");
+            });
+        }
+
+        /* ADMIN CONTROL */
+        function toggleAdminCheck() {
+            if(currentUser.isBoss) {
+                document.getElementById('admin-panel').classList.remove('hidden');
+            } else {
+                alert("Settings: Profile, Account, Privacy, Help");
+            }
+        }
+
+        function hideAdmin() { document.getElementById('admin-panel').classList.add('hidden'); }
+
+        function cleanupStatus() {
+            alert("Cleaning up Firebase Storage... 25GB quota safe.");
+            db.ref('status').remove();
+        }
+
+        /* CALL ENGINE */
+        function startCall(type) {
+            const roomID = "ThinkApp_" + Math.floor(Math.random()*1000);
+            const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(ZEGO_APP_ID, ZEGO_SERVER_SECRET, roomID, currentUser.id, currentUser.name);
+            const zp = ZegoUIKitPrebuilt.create(kitToken);
+            zp.joinRoom({
+                container: document.querySelector("#chat-window"),
+                scenario: { mode: type === 'video' ? ZegoUIKitPrebuilt.OneONoneCall : ZegoUIKitPrebuilt.GroupCall },
+                showPreJoinView: false
+            });
+        }
+
+    </script>
+</body>
+</html>
+
